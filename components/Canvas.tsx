@@ -1,3 +1,4 @@
+
 import React, { forwardRef } from 'react';
 import { SheetImage, SheetSize } from '../types';
 import { PIXELS_PER_INCH_DISPLAY } from '../constants';
@@ -31,7 +32,7 @@ const Canvas = forwardRef<HTMLDivElement, CanvasProps>(
         style={canvasStyle}
       >
         <div 
-          className="absolute inset-0 bg-repeat" 
+          className="absolute inset-0 bg-repeat export-hidden" 
           style={{
             backgroundImage: isDarkMode ? darkCheckers : lightCheckers,
             backgroundSize: `20px 20px`,
@@ -39,7 +40,7 @@ const Canvas = forwardRef<HTMLDivElement, CanvasProps>(
           }}
         ></div>
 
-        <div className="absolute inset-0 pointer-events-none" style={{
+        <div className="absolute inset-0 pointer-events-none export-hidden" style={{
             border: `${padding * PIXELS_PER_INCH_DISPLAY}px solid transparent`,
         }}>
             <div className="w-full h-full border border-dashed border-red-500 opacity-70"></div>

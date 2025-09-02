@@ -366,44 +366,122 @@ const App: React.FC = () => {
   };
   
   const handleExport = useCallback(() => {
-    if (!canvasRef.current) return;
-    
+    if (!canvasRef.current || !activeSheet) return;
+
     setIsLoading(true);
     setLoadingMessage('Generating your high-resolution gang sheet...');
 
     const currentSelected = [...selectedImageIds];
-    setSelectedImageIds([]);
+    setSelectedImageIds([]); // Deselect images to hide selection borders during export
 
+    const filter = (node: HTMLElement) => {
+      return !node.classList?.contains('export-hidden');
+    };
+
+    // Give UI time to update (e.g., hide selection borders)
     setTimeout(() => {
-        if (!canvasRef.current || !activeSheet) {
-            setIsLoading(false);
-            setLoadingMessage('');
-            setSelectedImageIds(currentSelected);
-            return;
-        }
-        toPng(canvasRef.current, { 
-            cacheBust: true,
-            pixelRatio: 1,
-            width: activeSheet.sheetSize.width * DPI,
-            height: activeSheet.sheetSize.height * DPI,
-        })
+      const canvasElement = canvasRef.current;
+      const currentSheet = activeSheet;
+
+      if (!canvasElement || !currentSheet) {
+        setIsLoading(false);
+        setLoadingMessage('');
+        setSelectedImageIds(currentSelected);
+        return;
+      }
+      
+      const exportWidth = currentSheet.sheetSize.width * DPI;
+      const exportHeight = currentSheet.sheetSize.height * DPI;
+      const MAX_DIMENSION = 32767; // Common browser canvas dimension limit
+      if (exportWidth > MAX_DIMENSION || exportHeight > MAX_DIMENSION) {
+           alert(`Warning: The requested export size (${exportWidth}x${exportHeight}px) is very large and may exceed browser limits. This can cause the export to fail or appear cropped. If you encounter issues, please try a smaller sheet size.`);
+      }
+
+      const scale = DPI / PIXELS_PER_INCH_DISPLAY;
+
+      toPng(canvasElement, {
+        cacheBust: true,
+        filter: filter,
+        backgroundColor: 'transparent',
+        pixelRatio: scale,
+      })
         .then((dataUrl) => {
-            const link = document.createElement('a');
-            link.download = `gang-sheet-${activeSheet.sheetSize.width}x${activeSheet.sheetSize.height}.png`;
-            link.href = dataUrl;
-            link.click();
+          const link = document.createElement('a');
+          link.download = `gang-sheet-${currentSheet.sheetSize.width}x${currentSheet.sheetSize.height}.png`;
+          link.href = dataUrl;
+          link.click();
         })
         .catch((err) => {
-            console.error('oops, something went wrong!', err);
-            alert("Failed to export the image. Please try again.");
+          console.error('Oops, something went wrong!', err);
+          alert("Failed to export the image. The sheet dimensions might be too large for your browser to handle. Please try exporting a smaller sheet.");
         })
         .finally(() => {
-            setIsLoading(false);
-            setLoadingMessage('');
-            setSelectedImageIds(currentSelected);
+          setIsLoading(false);
+          setLoadingMessage('');
+          setSelectedImageIds(currentSelected);
         });
     }, 100);
   }, [canvasRef, activeSheet, selectedImageIds]);
+
+    const handleExportAll = async () => {
+        if (!canvasRef.current || sheets.length === 0) return;
+
+        setIsLoading(true);
+        setLoadingMessage('Starting batch export...');
+        
+        const originalActiveSheetId = activeSheetId;
+        const currentSelected = [...selectedImageIds];
+        setSelectedImageIds([]); // Deselect for export
+
+        try {
+            // Allow UI to update
+            await new Promise(resolve => setTimeout(resolve, 100));
+
+            for (const sheet of sheets) {
+                const canvasElement = canvasRef.current;
+                if (!canvasElement) {
+                    throw new Error("Canvas reference lost during export.");
+                }
+
+                setLoadingMessage(`Exporting ${sheet.name}...`);
+                setActiveSheetId(sheet.id);
+
+                // Wait for React to re-render the canvas with the new sheet's data
+                await new Promise(resolve => setTimeout(resolve, 200));
+
+                const scale = DPI / PIXELS_PER_INCH_DISPLAY;
+                
+                try {
+                    const dataUrl = await toPng(canvasElement, {
+                        cacheBust: true,
+                        filter: (node: HTMLElement) => !node.classList?.contains('export-hidden'),
+                        backgroundColor: 'transparent',
+                        pixelRatio: scale,
+                    });
+
+                    const link = document.createElement('a');
+                    link.download = `gang-sheet-${sheet.name.replace(/\s+/g, '_')}-${sheet.sheetSize.width}x${sheet.sheetSize.height}.png`;
+                    link.href = dataUrl;
+                    link.click();
+                    // Small delay between downloads to prevent browser from blocking them
+                    await new Promise(resolve => setTimeout(resolve, 300));
+                } catch (err) {
+                    console.error(`Failed to export sheet: ${sheet.name}`, err);
+                    alert(`Failed to export sheet "${sheet.name}". The sheet dimensions might be too large for your browser. Continuing to next sheet.`);
+                }
+            }
+        } catch(e) {
+            console.error("An unexpected error occurred during batch export:", e);
+            alert("An unexpected error occurred during the export process.");
+        } finally {
+            // Restore original state
+            setLoadingMessage('Finishing up...');
+            setActiveSheetId(originalActiveSheetId);
+            setSelectedImageIds(currentSelected);
+            setIsLoading(false);
+            setLoadingMessage('');
+        }
+    };
 
   const addSheet = () => {
     const newSheet: Sheet = {
@@ -436,6 +514,8 @@ const App: React.FC = () => {
     <div className="flex flex-col h-screen font-sans text-gray-900 dark:text-gray-100">
       <Header 
         onExport={handleExport} 
+        onExportAll={handleExportAll}
+        sheetCount={sheets.length}
         isDarkMode={isDarkMode}
         onToggleDarkMode={() => setIsDarkMode(prev => !prev)}
       />
