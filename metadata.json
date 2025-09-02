@@ -1,0 +1,5 @@
+{
+  "name": "DTF Gang Sheet Builder",
+  "description": "A powerful and intuitive web application for creating custom Direct-To-Film (DTF) gang sheets. Upload your designs, arrange them on a resizable canvas, and utilize AI-powered tools like background removal to prepare your print-ready files with ease.",
+  "requestFramePermissions": []
+}
