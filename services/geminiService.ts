@@ -1,5 +1,5 @@
 
-import { GoogleGenAI, Modality } from "@google/genai";
+import { GoogleGenAI, Modality, Type } from "@google/genai";
 
 const API_KEY = process.env.API_KEY;
 
@@ -54,33 +54,50 @@ export const removeBackground = async (base64ImageData: string, mimeType: string
     }
 };
 
-export const generateSeamlessPattern = async (prompt: string): Promise<string> => {
+export const trimImage = async (base64ImageData: string, mimeType: string): Promise<{x: number, y: number, width: number, height: number}> => {
     if (!API_KEY) {
         throw new Error("API key is not configured.");
     }
-    
+    const base64Data = base64ImageData.split(',')[1] || base64ImageData;
+
     try {
-        const fullPrompt = `A seamlessly tileable, repeating pattern of ${prompt} with a transparent background. The subject elements should be isolated. High quality, detailed, 4k.`;
-        
-        const response = await ai.models.generateImages({
-            model: 'imagen-4.0-generate-001',
-            prompt: fullPrompt,
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: {
+                parts: [
+                    {
+                        inlineData: {
+                            data: base64Data,
+                            mimeType: mimeType,
+                        },
+                    },
+                    {
+                        text: 'Identify the primary subject in this image. Return a JSON object with the tightest possible bounding box around it, with keys "x", "y", "width", and "height" as integer pixel values.',
+                    },
+                ],
+            },
             config: {
-                numberOfImages: 1,
-                outputMimeType: 'image/png',
-                aspectRatio: '1:1',
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.OBJECT,
+                    properties: {
+                        x: { type: Type.INTEGER },
+                        y: { type: Type.INTEGER },
+                        width: { type: Type.INTEGER },
+                        height: { type: Type.INTEGER },
+                    },
+                },
             },
         });
 
-        if (response.generatedImages && response.generatedImages.length > 0 && response.generatedImages[0].image?.imageBytes) {
-            const base64ImageBytes: string = response.generatedImages[0].image.imageBytes;
-            return `data:image/png;base64,${base64ImageBytes}`;
+        const jsonStr = response.text.trim();
+        if (jsonStr) {
+            return JSON.parse(jsonStr);
         } else {
-            console.error("Gemini API did not return an image for pattern generation.", response);
-            throw new Error("AI could not generate a pattern. The model may have refused the prompt.");
+            throw new Error("AI did not return a valid bounding box.");
         }
     } catch (error) {
-        console.error("Error calling Gemini API for pattern generation:", error);
-        throw new Error("Failed to communicate with the AI image generation service.");
+        console.error("Error calling Gemini API for trimming:", error);
+        throw new Error("Failed to communicate with the AI service for trimming.");
     }
 };
