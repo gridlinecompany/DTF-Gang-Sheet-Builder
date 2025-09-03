@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Modality } from "@google/genai";
 
 const API_KEY = process.env.API_KEY;
@@ -58,26 +57,42 @@ export const generateSeamlessPattern = async (prompt: string): Promise<string> =
     if (!API_KEY) {
         throw new Error("API key is not configured.");
     }
+
+    // Note: Using gemini-2.5-flash-image-preview for image generation from a text prompt is unconventional.
+    // This model is optimized for image editing. For better text-to-image results, 'imagen-4.0-generate-001' is recommended.
+    // To make this work, we provide a blank transparent canvas for the model to "edit".
+    const transparent_1x1_png_b64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
     
     try {
-        const fullPrompt = `A seamlessly tileable, repeating pattern of ${prompt} with a transparent background. The subject elements should be isolated. High quality, detailed, 4k.`;
+        const fullPrompt = `On this transparent canvas, generate a high-quality, detailed, 4k, seamlessly tileable, repeating pattern of: "${prompt}". The pattern should have a transparent background with isolated subject elements.`;
         
-        const response = await ai.models.generateImages({
-            model: 'imagen-4.0-generate-001',
-            prompt: fullPrompt,
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash-image-preview', // Using "nano banana" as requested
+            contents: {
+                parts: [
+                    {
+                        inlineData: {
+                            data: transparent_1x1_png_b64,
+                            mimeType: 'image/png',
+                        },
+                    },
+                    { text: fullPrompt },
+                ],
+            },
             config: {
-                numberOfImages: 1,
-                outputMimeType: 'image/png',
-                aspectRatio: '1:1',
+                responseModalities: [Modality.IMAGE, Modality.TEXT],
             },
         });
 
-        if (response.generatedImages && response.generatedImages.length > 0 && response.generatedImages[0].image?.imageBytes) {
-            const base64ImageBytes: string = response.generatedImages[0].image.imageBytes;
-            return `data:image/png;base64,${base64ImageBytes}`;
+        const imagePart = response.candidates?.[0]?.content?.parts?.find(part => part.inlineData);
+
+        if (imagePart && imagePart.inlineData) {
+            return `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`;
         } else {
-            console.error("Gemini API did not return an image for pattern generation.", response);
-            throw new Error("AI could not generate a pattern. The model may have refused the prompt.");
+            const textPart = response.candidates?.[0]?.content?.parts?.find(part => part.text);
+            const refusalReason = textPart?.text || "No image was generated.";
+            console.error("Gemini API did not return an image for pattern generation. Reason:", refusalReason, response);
+            throw new Error(`AI could not generate a pattern. Reason: ${refusalReason}`);
         }
     } catch (error) {
         console.error("Error calling Gemini API for pattern generation:", error);
