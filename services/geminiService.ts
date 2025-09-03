@@ -53,3 +53,34 @@ export const removeBackground = async (base64ImageData: string, mimeType: string
         throw new Error("Failed to communicate with the AI service.");
     }
 };
+
+export const generateSeamlessPattern = async (prompt: string): Promise<string> => {
+    if (!API_KEY) {
+        throw new Error("API key is not configured.");
+    }
+    
+    try {
+        const fullPrompt = `A seamlessly tileable, repeating pattern of ${prompt} with a transparent background. The subject elements should be isolated. High quality, detailed, 4k.`;
+        
+        const response = await ai.models.generateImages({
+            model: 'imagen-4.0-generate-001',
+            prompt: fullPrompt,
+            config: {
+                numberOfImages: 1,
+                outputMimeType: 'image/png',
+                aspectRatio: '1:1',
+            },
+        });
+
+        if (response.generatedImages && response.generatedImages.length > 0 && response.generatedImages[0].image?.imageBytes) {
+            const base64ImageBytes: string = response.generatedImages[0].image.imageBytes;
+            return `data:image/png;base64,${base64ImageBytes}`;
+        } else {
+            console.error("Gemini API did not return an image for pattern generation.", response);
+            throw new Error("AI could not generate a pattern. The model may have refused the prompt.");
+        }
+    } catch (error) {
+        console.error("Error calling Gemini API for pattern generation:", error);
+        throw new Error("Failed to communicate with the AI image generation service.");
+    }
+};

@@ -1,8 +1,8 @@
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { toPng } from 'html-to-image';
-import { SheetImage, SheetSize, Sheet } from './types';
-import { SHEET_SIZES, DPI, PIXELS_PER_INCH_DISPLAY } from './constants';
+import { SheetImage, SheetSize, Sheet, Pattern } from './types';
+import { DPI, PIXELS_PER_INCH_DISPLAY } from './constants';
 import Header from './components/Header';
 import Canvas from './components/Canvas';
 import SettingsPanel from './components/SettingsPanel';
@@ -12,6 +12,8 @@ import { removeBackground as removeBgService } from './services/geminiService';
 import { fileToBase64 } from './utils/fileUtils';
 import SheetTabs from './components/SheetTabs';
 import BulkUploadModal from './components/BulkUploadModal';
+import AIPatternModal from './components/AIPatternModal';
+import PatternPanel from './components/PatternPanel';
 
 // Type for the packing algorithm's internal node structure
 type PackerNode = {
@@ -24,10 +26,11 @@ type PackerNode = {
   right?: PackerNode;
 };
 
+const DEFAULT_SHEET_SIZE: SheetSize = { width: 22, height: 24 };
 
 const App: React.FC = () => {
   const [sheets, setSheets] = useState<Sheet[]>([
-    { id: crypto.randomUUID(), name: 'Sheet 1', sheetSize: SHEET_SIZES[1], images: [] }
+    { id: crypto.randomUUID(), name: 'Sheet 1', sheetSize: DEFAULT_SHEET_SIZE, images: [], pattern: null }
   ]);
   const [activeSheetId, setActiveSheetId] = useState<string>(sheets[0].id);
   const [selectedImageIds, setSelectedImageIds] = useState<string[]>([]);
@@ -39,6 +42,7 @@ const App: React.FC = () => {
   const [padding, setPadding] = useState(0.5); // in inches
   const [gutter, setGutter] = useState(0.5); // in inches
   const [isBulkUploadModalOpen, setIsBulkUploadModalOpen] = useState(false);
+  const [isAIPatternModalOpen, setIsAIPatternModalOpen] = useState(false);
   const [allowRotation, setAllowRotation] = useState(true);
 
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -282,7 +286,7 @@ const App: React.FC = () => {
     let imagesToProcess = JSON.parse(JSON.stringify(imagesToPack));
 
     while (imagesToProcess.length > 0) {
-        const sheetSizeForNesting = activeSheet?.sheetSize || SHEET_SIZES[1];
+        const sheetSizeForNesting = activeSheet?.sheetSize || DEFAULT_SHEET_SIZE;
         const { placedImages, unplacedImages } = packOntoSingleSheet(imagesToProcess, sheetSizeForNesting, allowRotationFlag);
 
         if (placedImages.length === 0 && unplacedImages.length > 0) {
@@ -293,6 +297,7 @@ const App: React.FC = () => {
               name: `Sheet ${newSheets.length + 1} (Unplaced)`,
               sheetSize: sheetSizeForNesting,
               images: unplacedImages,
+              pattern: null,
             });
             break; // Avoid infinite loop
         }
@@ -303,6 +308,7 @@ const App: React.FC = () => {
                 name: `Sheet ${newSheets.length + 1}`,
                 sheetSize: sheetSizeForNesting,
                 images: placedImages,
+                pattern: null,
             });
         }
 
@@ -312,7 +318,7 @@ const App: React.FC = () => {
     if (newSheets.length === 0) {
         // Handle case where no images were provided or could be placed
         const currentSheet = sheets.find(s => s.id === activeSheetId) || sheets[0];
-        const newSheet = { id: crypto.randomUUID(), name: 'Sheet 1', sheetSize: currentSheet?.sheetSize || SHEET_SIZES[1], images: [] };
+        const newSheet = { id: crypto.randomUUID(), name: 'Sheet 1', sheetSize: currentSheet?.sheetSize || DEFAULT_SHEET_SIZE, images: [], pattern: null };
         setSheets([newSheet]);
         setActiveSheetId(newSheet.id);
     } else {
@@ -487,12 +493,42 @@ const App: React.FC = () => {
     const newSheet: Sheet = {
         id: crypto.randomUUID(),
         name: `Sheet ${sheets.length + 1}`,
-        sheetSize: activeSheet?.sheetSize || SHEET_SIZES[1],
+        sheetSize: activeSheet?.sheetSize || DEFAULT_SHEET_SIZE,
         images: [],
+        pattern: null,
     };
     setSheets([...sheets, newSheet]);
     setActiveSheetId(newSheet.id);
   }
+
+  const handleAIPatternFill = (params: { imageSrc: string; tileSize: number; spacing: number; rotationJitter: number; }) => {
+    if (!activeSheet) return;
+
+    const willReplaceContent = activeSheet.images.length > 0 || activeSheet.pattern;
+    if (willReplaceContent) {
+        if (!confirm("This will replace all images and any existing pattern on the current sheet. Are you sure?")) {
+            return;
+        }
+    }
+    
+    updateSheet(activeSheetId, { 
+        images: [],
+        pattern: params 
+    });
+    setSelectedImageIds([]);
+  };
+
+  const handleUpdatePattern = (newProps: Partial<Pattern>) => {
+    if (activeSheet?.pattern) {
+        updateSheet(activeSheetId, {
+            pattern: { ...activeSheet.pattern, ...newProps }
+        });
+    }
+  };
+
+  const handleClearPattern = () => {
+    updateSheet(activeSheetId, { pattern: null });
+  };
 
   if (!activeSheet && sheets.length > 0) {
      setActiveSheetId(sheets[0].id);
@@ -500,7 +536,7 @@ const App: React.FC = () => {
   }
 
   if (!activeSheet) {
-    const newSheet = { id: crypto.randomUUID(), name: 'Sheet 1', sheetSize: SHEET_SIZES[1], images: [] };
+    const newSheet = { id: crypto.randomUUID(), name: 'Sheet 1', sheetSize: DEFAULT_SHEET_SIZE, images: [], pattern: null };
     setSheets([newSheet]);
     setActiveSheetId(newSheet.id);
     return (
@@ -530,6 +566,7 @@ const App: React.FC = () => {
             onGutterChange={setGutter}
             onAutoNest={handleAutoNest}
             onBulkUpload={() => setIsBulkUploadModalOpen(true)}
+            onAIPatternFill={() => setIsAIPatternModalOpen(true)}
             allowRotation={allowRotation}
             onAllowRotationChange={handleAllowRotationChange}
         />
@@ -545,15 +582,15 @@ const App: React.FC = () => {
                   ref={canvasRef}
                   sheetSize={activeSheet.sheetSize}
                   images={activeSheet.images}
+                  pattern={activeSheet.pattern}
                   selectedImageIds={selectedImageIds}
                   onSelectImage={handleSelectImage}
                   onUpdateImage={updateImage}
-                  isDarkMode={isDarkMode}
                   padding={padding}
                 />
             </main>
         </div>
-        {primarySelectedImage && (
+        {primarySelectedImage ? (
           <SettingsPanel
             image={primarySelectedImage}
             onUpdate={updateSelectedImages}
@@ -561,12 +598,25 @@ const App: React.FC = () => {
             onGridFill={handleGridFill}
             onRemoveBackground={removeBackground}
           />
-        )}
+        ) : activeSheet.pattern ? (
+          <PatternPanel 
+            pattern={activeSheet.pattern}
+            onUpdate={handleUpdatePattern}
+            onClear={handleClearPattern}
+          />
+        ) : null}
       </div>
       {isBulkUploadModalOpen && (
         <BulkUploadModal 
             onClose={() => setIsBulkUploadModalOpen(false)}
             onSubmit={handleBulkUpload}
+        />
+      )}
+      {isAIPatternModalOpen && (
+        <AIPatternModal
+            onClose={() => setIsAIPatternModalOpen(false)}
+            onSubmit={handleAIPatternFill}
+            initialGutter={gutter}
         />
       )}
       {isLoading && <LoadingModal message={loadingMessage} />}

@@ -1,6 +1,6 @@
+
 import React, { useRef } from 'react';
 import { SheetSize } from '../types';
-import { SHEET_SIZES } from '../constants';
 import Icon from './Icon';
 
 interface ToolbarProps {
@@ -13,6 +13,7 @@ interface ToolbarProps {
   onGutterChange: (gutter: number) => void;
   onAutoNest: () => void;
   onBulkUpload: () => void;
+  onAIPatternFill: () => void;
   allowRotation: boolean;
   onAllowRotationChange: (allow: boolean) => void;
 }
@@ -27,6 +28,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
     onGutterChange, 
     onAutoNest, 
     onBulkUpload,
+    onAIPatternFill,
     allowRotation,
     onAllowRotationChange
 }) => {
@@ -46,24 +48,9 @@ const Toolbar: React.FC<ToolbarProps> = ({
     fileInputRef.current?.click();
   };
   
-  const isCustomSize = !SHEET_SIZES.some(s => s.name === sheetSize.name);
-
-  const handleSizeSelectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const value = e.target.value;
-    if (value === 'custom') {
-        onSizeChange({ name: 'Custom', width: sheetSize.width, height: sheetSize.height });
-    } else {
-        const selectedSize = SHEET_SIZES.find(s => s.name === value);
-        if (selectedSize) {
-            onSizeChange(selectedSize);
-        }
-    }
-  };
-
-  const handleCustomDimensionChange = (dimension: 'width' | 'height', value: number) => {
+  const handleDimensionChange = (dimension: 'width' | 'height', value: number) => {
     onSizeChange({
         ...sheetSize,
-        name: 'Custom',
         [dimension]: value,
     });
   };
@@ -73,22 +60,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
     <aside className="w-64 bg-white dark:bg-slate-800 p-4 border-r border-gray-200 dark:border-slate-700 flex flex-col gap-6 z-10 shadow-md">
        <div className="space-y-4">
         <div>
-            <label htmlFor="sheet-size" className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2 block">Sheet Size</label>
-            <select
-                id="sheet-size"
-                value={isCustomSize ? 'custom' : sheetSize.name}
-                onChange={handleSizeSelectChange}
-                className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-                {SHEET_SIZES.map((size) => (
-                    <option key={size.name} value={size.name}>
-                        {size.name}
-                    </option>
-                ))}
-                <option value="custom">Custom...</option>
-            </select>
-        </div>
-        {isCustomSize && (
+            <label className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2 block">Sheet Size</label>
             <div className="flex gap-2">
                  <div className="w-1/2">
                     <label htmlFor="custom-width" className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2 block">Width (in)</label>
@@ -98,7 +70,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
                         step="0.1"
                         min="1"
                         value={sheetSize.width}
-                        onChange={(e) => handleCustomDimensionChange('width', parseFloat(e.target.value) || 1)}
+                        onChange={(e) => handleDimensionChange('width', parseFloat(e.target.value) || 1)}
                         className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     />
                 </div>
@@ -110,12 +82,12 @@ const Toolbar: React.FC<ToolbarProps> = ({
                         step="0.1"
                         min="1"
                         value={sheetSize.height}
-                        onChange={(e) => handleCustomDimensionChange('height', parseFloat(e.target.value) || 1)}
+                        onChange={(e) => handleDimensionChange('height', parseFloat(e.target.value) || 1)}
                         className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     />
                 </div>
             </div>
-        )}
+        </div>
         <div className="flex gap-2">
             <div className="w-1/2">
                 <label htmlFor="padding" className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2 block">Padding (in)</label>
@@ -167,9 +139,16 @@ const Toolbar: React.FC<ToolbarProps> = ({
             <Icon name="nest" className="w-5 h-5" />
             Auto Nest All
           </button>
+          <button
+            onClick={onAIPatternFill}
+            className="w-full bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg flex items-center justify-center gap-2 hover:bg-indigo-700 transition-colors"
+          >
+            <Icon name="wand" className="w-5 h-5" />
+            AI Pattern Fill
+          </button>
            <button
             onClick={onBulkUpload}
-            className="w-full bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg flex items-center justify-center gap-2 hover:bg-indigo-700 transition-colors"
+            className="w-full bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-200 font-semibold py-2 px-4 rounded-lg flex items-center justify-center gap-2 hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors"
           >
             <Icon name="upload" className="w-5 h-5" />
             Bulk Upload
