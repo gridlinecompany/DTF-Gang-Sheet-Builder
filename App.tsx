@@ -1,20 +1,20 @@
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { toPng } from 'html-to-image';
-import { useDropzone } from 'react-dropzone';
-import { SheetImage, SheetSize, Sheet } from './types';
-import { SHEET_SIZES, DPI, PIXELS_PER_INCH_DISPLAY } from './constants';
+import { SheetImage, SheetSize, Sheet, Pattern } from './types';
+import { DPI, PIXELS_PER_INCH_DISPLAY } from './constants';
 import Header from './components/Header';
 import Canvas from './components/Canvas';
 import SettingsPanel from './components/SettingsPanel';
 import Toolbar from './components/Toolbar';
 import LoadingModal from './components/LoadingModal';
-import { removeBackground as removeBgService, trimImage as trimImageService } from './services/geminiService';
+import { removeBackground as removeBgService } from './services/geminiService';
 import { fileToBase64 } from './utils/fileUtils';
 import SheetTabs from './components/SheetTabs';
 import BulkUploadModal from './components/BulkUploadModal';
-import Icon from './components/Icon';
-
+import AIPatternModal from './components/AIPatternModal';
+import PatternPanel from './components/PatternPanel';
+import ZoomControls from './components/ZoomControls';
 
 // Type for the packing algorithm's internal node structure
 type PackerNode = {
@@ -27,10 +27,11 @@ type PackerNode = {
   right?: PackerNode;
 };
 
+const DEFAULT_SHEET_SIZE: SheetSize = { width: 22, height: 24 };
 
 const App: React.FC = () => {
   const [sheets, setSheets] = useState<Sheet[]>([
-    { id: crypto.randomUUID(), name: 'Sheet 1', sheetSize: SHEET_SIZES[1], images: [] }
+    { id: crypto.randomUUID(), name: 'Sheet 1', sheetSize: DEFAULT_SHEET_SIZE, images: [], pattern: null }
   ]);
   const [activeSheetId, setActiveSheetId] = useState<string>(sheets[0].id);
   const [selectedImageIds, setSelectedImageIds] = useState<string[]>([]);
@@ -42,7 +43,9 @@ const App: React.FC = () => {
   const [padding, setPadding] = useState(0.5); // in inches
   const [gutter, setGutter] = useState(0.5); // in inches
   const [isBulkUploadModalOpen, setIsBulkUploadModalOpen] = useState(false);
+  const [isAIPatternModalOpen, setIsAIPatternModalOpen] = useState(false);
   const [allowRotation, setAllowRotation] = useState(true);
+  const [zoom, setZoom] = useState(1);
 
   const canvasRef = useRef<HTMLDivElement>(null);
   const nextZIndex = useRef(1);
@@ -74,28 +77,18 @@ const App: React.FC = () => {
      setSheets(prev => prev.map(s => s.id === id ? { ...s, ...newProps } : s));
   };
 
-  const addImage = async (file: File, dropPosition?: { x: number, y: number }) => {
+  const addImage = async (file: File) => {
     try {
       const { base64, width, height } = await fileToBase64(file);
       const isFirstImage = activeSheet.images.length === 0;
       const paddingPx = padding * PIXELS_PER_INCH_DISPLAY;
 
-      let initialX = isFirstImage ? paddingPx : 50;
-      let initialY = isFirstImage ? paddingPx : 50;
-
-      if (dropPosition && canvasRef.current) {
-        const canvasRect = canvasRef.current.getBoundingClientRect();
-        initialX = dropPosition.x - canvasRect.left;
-        initialY = dropPosition.y - canvasRect.top;
-      }
-
-
       const newImage: SheetImage = {
         id: crypto.randomUUID(),
         src: base64,
         originalMimeType: file.type,
-        x: initialX,
-        y: initialY,
+        x: isFirstImage ? paddingPx : 50,
+        y: isFirstImage ? paddingPx : 50,
         width: width / DPI,
         height: height / DPI,
         rotation: 0,
@@ -108,24 +101,6 @@ const App: React.FC = () => {
       alert("Failed to load image. Please try a different file.");
     }
   };
-  
-  const onDrop = useCallback((acceptedFiles: File[], _rejectedFiles: any[], event: any) => {
-    acceptedFiles.forEach((file, index) => {
-        const dropPosition = {
-            x: event.clientX + index * 10,
-            y: event.clientY + index * 10
-        };
-        addImage(file, dropPosition);
-    });
-  }, [activeSheetId, sheets]);
-
-  const { getRootProps, isDragActive } = useDropzone({
-    onDrop,
-    noClick: true,
-    noKeyboard: true,
-    accept: { 'image/*': ['.png', '.jpeg', '.jpg', '.webp', '.svg'] },
-  });
-
 
   const updateImage = (id: string, newProps: Partial<SheetImage>) => {
     updateSheet(activeSheetId, {
@@ -313,7 +288,7 @@ const App: React.FC = () => {
     let imagesToProcess = JSON.parse(JSON.stringify(imagesToPack));
 
     while (imagesToProcess.length > 0) {
-        const sheetSizeForNesting = activeSheet?.sheetSize || SHEET_SIZES[1];
+        const sheetSizeForNesting = activeSheet?.sheetSize || DEFAULT_SHEET_SIZE;
         const { placedImages, unplacedImages } = packOntoSingleSheet(imagesToProcess, sheetSizeForNesting, allowRotationFlag);
 
         if (placedImages.length === 0 && unplacedImages.length > 0) {
@@ -324,6 +299,7 @@ const App: React.FC = () => {
               name: `Sheet ${newSheets.length + 1} (Unplaced)`,
               sheetSize: sheetSizeForNesting,
               images: unplacedImages,
+              pattern: null,
             });
             break; // Avoid infinite loop
         }
@@ -334,6 +310,7 @@ const App: React.FC = () => {
                 name: `Sheet ${newSheets.length + 1}`,
                 sheetSize: sheetSizeForNesting,
                 images: placedImages,
+                pattern: null,
             });
         }
 
@@ -343,7 +320,7 @@ const App: React.FC = () => {
     if (newSheets.length === 0) {
         // Handle case where no images were provided or could be placed
         const currentSheet = sheets.find(s => s.id === activeSheetId) || sheets[0];
-        const newSheet = { id: crypto.randomUUID(), name: 'Sheet 1', sheetSize: currentSheet?.sheetSize || SHEET_SIZES[1], images: [] };
+        const newSheet = { id: crypto.randomUUID(), name: 'Sheet 1', sheetSize: currentSheet?.sheetSize || DEFAULT_SHEET_SIZE, images: [], pattern: null };
         setSheets([newSheet]);
         setActiveSheetId(newSheet.id);
     } else {
@@ -395,57 +372,6 @@ const App: React.FC = () => {
       setLoadingMessage('');
     }
   };
-
-  const handleSmartTrim = async (id: string) => {
-    const image = activeSheet.images.find((img) => img.id === id);
-    if (!image) return;
-
-    setIsLoading(true);
-    setLoadingMessage('AI is finding the subject to trim...');
-    try {
-      const boundingBox = await trimImageService(image.src, image.originalMimeType);
-      
-      const originalImg = new Image();
-      originalImg.src = image.src;
-      await new Promise(resolve => { originalImg.onload = resolve; });
-
-      const canvas = document.createElement('canvas');
-      canvas.width = boundingBox.width;
-      canvas.height = boundingBox.height;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) throw new Error("Could not create canvas context");
-
-      ctx.drawImage(originalImg, boundingBox.x, boundingBox.y, boundingBox.width, boundingBox.height, 0, 0, boundingBox.width, boundingBox.height);
-      
-      const newSrc = canvas.toDataURL(image.originalMimeType);
-      const newWidthIn = boundingBox.width / DPI;
-      const newHeightIn = boundingBox.height / DPI;
-      
-      const oldWidthPx = image.width * PIXELS_PER_INCH_DISPLAY;
-      const oldHeightPx = image.height * PIXELS_PER_INCH_DISPLAY;
-      const newWidthPx = newWidthIn * PIXELS_PER_INCH_DISPLAY;
-      const newHeightPx = newHeightIn * PIXELS_PER_INCH_DISPLAY;
-
-      // Adjust position to keep the center point
-      const newX = image.x + (oldWidthPx - newWidthPx) / 2;
-      const newY = image.y + (oldHeightPx - newHeightPx) / 2;
-
-      updateImage(id, { 
-        src: newSrc,
-        width: newWidthIn,
-        height: newHeightIn,
-        x: newX,
-        y: newY,
-      });
-
-    } catch (error) {
-      console.error("Smart Trim failed:", error);
-      alert(`Sorry, the Smart Trim failed. ${error instanceof Error ? error.message : "Please try again."}`);
-    } finally {
-      setIsLoading(false);
-      setLoadingMessage('');
-    }
-  };
   
   const handleExport = useCallback(() => {
     if (!canvasRef.current || !activeSheet) return;
@@ -455,12 +381,14 @@ const App: React.FC = () => {
 
     const currentSelected = [...selectedImageIds];
     setSelectedImageIds([]); // Deselect images to hide selection borders during export
+    const currentZoom = zoom;
+    setZoom(1); // Reset zoom for export
 
     const filter = (node: HTMLElement) => {
       return !node.classList?.contains('export-hidden');
     };
 
-    // Give UI time to update (e.g., hide selection borders)
+    // Give UI time to update (e.g., hide selection borders, reset zoom)
     setTimeout(() => {
       const canvasElement = canvasRef.current;
       const currentSheet = activeSheet;
@@ -469,6 +397,7 @@ const App: React.FC = () => {
         setIsLoading(false);
         setLoadingMessage('');
         setSelectedImageIds(currentSelected);
+        setZoom(currentZoom);
         return;
       }
       
@@ -501,9 +430,10 @@ const App: React.FC = () => {
           setIsLoading(false);
           setLoadingMessage('');
           setSelectedImageIds(currentSelected);
+          setZoom(currentZoom);
         });
     }, 100);
-  }, [canvasRef, activeSheet, selectedImageIds]);
+  }, [canvasRef, activeSheet, selectedImageIds, zoom]);
 
     const handleExportAll = async () => {
         if (!canvasRef.current || sheets.length === 0) return;
@@ -514,6 +444,8 @@ const App: React.FC = () => {
         const originalActiveSheetId = activeSheetId;
         const currentSelected = [...selectedImageIds];
         setSelectedImageIds([]); // Deselect for export
+        const currentZoom = zoom;
+        setZoom(1); // Reset zoom for all exports
 
         try {
             // Allow UI to update
@@ -560,6 +492,7 @@ const App: React.FC = () => {
             setLoadingMessage('Finishing up...');
             setActiveSheetId(originalActiveSheetId);
             setSelectedImageIds(currentSelected);
+            setZoom(currentZoom);
             setIsLoading(false);
             setLoadingMessage('');
         }
@@ -569,15 +502,41 @@ const App: React.FC = () => {
     const newSheet: Sheet = {
         id: crypto.randomUUID(),
         name: `Sheet ${sheets.length + 1}`,
-        sheetSize: activeSheet?.sheetSize || SHEET_SIZES[1],
+        sheetSize: activeSheet?.sheetSize || DEFAULT_SHEET_SIZE,
         images: [],
+        pattern: null,
     };
     setSheets([...sheets, newSheet]);
     setActiveSheetId(newSheet.id);
   }
-  
-  const handleSelectTab = (tabId: string) => {
-    setActiveSheetId(tabId);
+
+  const handleAIPatternFill = (params: { imageSrc: string; tileSize: number; spacing: number; rotationJitter: number; }) => {
+    if (!activeSheet) return;
+
+    const willReplaceContent = activeSheet.images.length > 0 || activeSheet.pattern;
+    if (willReplaceContent) {
+        if (!confirm("This will replace all images and any existing pattern on the current sheet. Are you sure?")) {
+            return;
+        }
+    }
+    
+    updateSheet(activeSheetId, { 
+        images: [],
+        pattern: params 
+    });
+    setSelectedImageIds([]);
+  };
+
+  const handleUpdatePattern = (newProps: Partial<Pattern>) => {
+    if (activeSheet?.pattern) {
+        updateSheet(activeSheetId, {
+            pattern: { ...activeSheet.pattern, ...newProps }
+        });
+    }
+  };
+
+  const handleClearPattern = () => {
+    updateSheet(activeSheetId, { pattern: null });
   };
 
   if (!activeSheet && sheets.length > 0) {
@@ -586,7 +545,7 @@ const App: React.FC = () => {
   }
 
   if (!activeSheet) {
-    const newSheet = { id: crypto.randomUUID(), name: 'Sheet 1', sheetSize: SHEET_SIZES[1], images: [] };
+    const newSheet = { id: crypto.randomUUID(), name: 'Sheet 1', sheetSize: DEFAULT_SHEET_SIZE, images: [], pattern: null };
     setSheets([newSheet]);
     setActiveSheetId(newSheet.id);
     return (
@@ -616,6 +575,7 @@ const App: React.FC = () => {
             onGutterChange={setGutter}
             onAutoNest={handleAutoNest}
             onBulkUpload={() => setIsBulkUploadModalOpen(true)}
+            onAIPatternFill={() => setIsAIPatternModalOpen(true)}
             allowRotation={allowRotation}
             onAllowRotationChange={handleAllowRotationChange}
         />
@@ -623,43 +583,51 @@ const App: React.FC = () => {
             <SheetTabs 
                 sheets={sheets}
                 activeSheetId={activeSheetId}
-                onSelectTab={handleSelectTab}
+                onSelectSheet={setActiveSheetId}
                 onAddSheet={addSheet}
             />
-            <main {...getRootProps()} className="flex-1 bg-gray-200 dark:bg-slate-800 p-8 overflow-auto flex justify-center items-start relative focus:outline-none" onClick={deselectImage}>
-                {isDragActive && (
-                    <div className="absolute inset-0 z-30 bg-indigo-500/20 backdrop-blur-sm flex flex-col justify-center items-center pointer-events-none border-4 border-dashed border-indigo-500 rounded-lg m-4">
-                       <Icon name="upload" className="w-16 h-16 text-indigo-500" />
-                       <p className="text-xl font-bold text-indigo-700 dark:text-indigo-200 mt-4">Drop images to upload</p>
-                    </div>
-                )}
+            <main className="relative flex-1 bg-gray-200 dark:bg-slate-800 p-8 overflow-auto flex justify-center items-start" onClick={deselectImage}>
                 <Canvas
                   ref={canvasRef}
                   sheetSize={activeSheet.sheetSize}
                   images={activeSheet.images}
+                  pattern={activeSheet.pattern}
                   selectedImageIds={selectedImageIds}
                   onSelectImage={handleSelectImage}
                   onUpdateImage={updateImage}
-                  isDarkMode={isDarkMode}
                   padding={padding}
+                  zoom={zoom}
                 />
+                <ZoomControls zoom={zoom} onZoomChange={setZoom} />
             </main>
         </div>
-        {primarySelectedImage && (
+        {primarySelectedImage ? (
           <SettingsPanel
             image={primarySelectedImage}
             onUpdate={updateSelectedImages}
             onDelete={deleteSelectedImages}
             onGridFill={handleGridFill}
             onRemoveBackground={removeBackground}
-            onSmartTrim={handleSmartTrim}
           />
-        )}
+        ) : activeSheet.pattern ? (
+          <PatternPanel 
+            pattern={activeSheet.pattern}
+            onUpdate={handleUpdatePattern}
+            onClear={handleClearPattern}
+          />
+        ) : null}
       </div>
       {isBulkUploadModalOpen && (
         <BulkUploadModal 
             onClose={() => setIsBulkUploadModalOpen(false)}
             onSubmit={handleBulkUpload}
+        />
+      )}
+      {isAIPatternModalOpen && (
+        <AIPatternModal
+            onClose={() => setIsAIPatternModalOpen(false)}
+            onSubmit={handleAIPatternFill}
+            initialGutter={gutter}
         />
       )}
       {isLoading && <LoadingModal message={loadingMessage} />}

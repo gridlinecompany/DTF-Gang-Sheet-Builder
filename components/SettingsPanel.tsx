@@ -1,4 +1,3 @@
-
 import React, { ChangeEvent, useState, useEffect } from 'react';
 import { SheetImage } from '../types';
 import Icon from './Icon';
@@ -9,10 +8,9 @@ interface SettingsPanelProps {
   onDelete: () => void;
   onGridFill: (id: string, rows: number, cols: number) => void;
   onRemoveBackground: (id: string) => void;
-  onSmartTrim: (id: string) => void;
 }
 
-const SettingsPanel: React.FC<SettingsPanelProps> = ({ image, onUpdate, onDelete, onGridFill, onRemoveBackground, onSmartTrim }) => {
+const SettingsPanel: React.FC<SettingsPanelProps> = ({ image, onUpdate, onDelete, onGridFill, onRemoveBackground }) => {
   const [gridRows, setGridRows] = useState(1);
   const [gridCols, setGridCols] = useState(1);
 
@@ -108,22 +106,13 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ image, onUpdate, onDelete
 
        <div>
         <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2">AI Tools</h3>
-        <div className="space-y-2">
-             <button
-                onClick={() => onSmartTrim(image.id)}
-                className="w-full bg-indigo-50 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 font-semibold py-2 px-4 rounded-lg flex items-center justify-center gap-2 hover:bg-indigo-100 dark:hover:bg-indigo-900/80 transition-colors"
-            >
-                <Icon name="trim" className="w-5 h-5"/>
-                AI Smart Trim
-            </button>
-            <button
-                onClick={() => onRemoveBackground(image.id)}
-                className="w-full bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg flex items-center justify-center gap-2 hover:bg-indigo-700 transition-colors"
-            >
-                <Icon name="sparkles" className="w-5 h-5"/>
-                Remove Background
-            </button>
-        </div>
+         <button
+            onClick={() => onRemoveBackground(image.id)}
+            className="w-full bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg flex items-center justify-center gap-2 hover:bg-indigo-700 transition-colors"
+        >
+            <Icon name="sparkles" className="w-5 h-5"/>
+            Remove Background
+        </button>
       </div>
 
     </aside>

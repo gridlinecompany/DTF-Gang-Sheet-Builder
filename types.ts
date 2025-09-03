@@ -1,6 +1,5 @@
 
 export interface SheetSize {
-  name: string;
   width: number; // in inches
   height: number; // in inches
 }
@@ -17,9 +16,17 @@ export interface SheetImage {
   zIndex: number;
 }
 
+export interface Pattern {
+  imageSrc: string;
+  tileSize: number; // inches
+  spacing: number; // inches
+  rotationJitter: number; // degrees
+}
+
 export interface Sheet {
     id: string;
     name: string;
     sheetSize: SheetSize;
     images: SheetImage[];
+    pattern?: Pattern | null;
 }

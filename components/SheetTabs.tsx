@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Sheet } from '../types';
 import Icon from './Icon';
@@ -6,18 +5,18 @@ import Icon from './Icon';
 interface SheetTabsProps {
     sheets: Sheet[];
     activeSheetId: string;
-    onSelectTab: (id: string) => void;
+    onSelectSheet: (id: string) => void;
     onAddSheet: () => void;
 }
 
-const SheetTabs: React.FC<SheetTabsProps> = ({ sheets, activeSheetId, onSelectTab, onAddSheet }) => {
+const SheetTabs: React.FC<SheetTabsProps> = ({ sheets, activeSheetId, onSelectSheet, onAddSheet }) => {
     return (
-        <div className="bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 px-4 pt-2 flex items-center gap-2 flex-wrap">
+        <div className="bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 px-4 pt-2 flex items-center gap-2">
             {sheets.map((sheet) => (
                 <button
                     key={sheet.id}
-                    onClick={() => onSelectTab(sheet.id)}
-                    className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors focus:outline-none flex items-center gap-2 ${
+                    onClick={() => onSelectSheet(sheet.id)}
+                    className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors focus:outline-none ${
                         activeSheetId === sheet.id
                             ? 'bg-gray-200 dark:bg-slate-800 border-gray-200 dark:border-slate-700 border-t border-x text-indigo-600 dark:text-indigo-400'
                             : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700'
@@ -26,7 +25,7 @@ const SheetTabs: React.FC<SheetTabsProps> = ({ sheets, activeSheetId, onSelectTa
                     {sheet.name}
                 </button>
             ))}
-             <button
+            <button
                 onClick={onAddSheet}
                 className="p-2 ml-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700 focus:outline-none"
                 aria-label="Add new sheet"
