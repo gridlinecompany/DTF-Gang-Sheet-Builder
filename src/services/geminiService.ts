@@ -1,3 +1,4 @@
+
 const FUNCTION_URL = '/.netlify/functions/gemini';
 
 async function callApi(action: string, params: Record<string, any>) {
@@ -26,10 +27,17 @@ async function callApi(action: string, params: Record<string, any>) {
     }
 }
 
+export interface PatternGenerationParams {
+    prompt: string;
+    style: string;
+    colors: string;
+    negativePrompt: string;
+}
+
 export const removeBackground = async (base64ImageData: string, mimeType: string): Promise<string> => {
     return callApi('removeBackground', { base64ImageData, mimeType });
 };
 
-export const generateSeamlessPattern = async (prompt: string): Promise<string> => {
-    return callApi('generatePattern', { prompt });
+export const generateSeamlessPattern = async (params: PatternGenerationParams): Promise<string> => {
+    return callApi('generatePattern', params);
 };

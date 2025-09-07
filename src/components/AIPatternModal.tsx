@@ -1,6 +1,7 @@
+
 import React, { useState } from 'react';
 import Icon from './Icon';
-import { generateSeamlessPattern } from '../services/geminiService';
+import { generateSeamlessPattern, PatternGenerationParams } from '../services/geminiService';
 
 interface AIPatternModalProps {
     onClose: () => void;
@@ -10,6 +11,10 @@ interface AIPatternModalProps {
 
 const AIPatternModal: React.FC<AIPatternModalProps> = ({ onClose, onSubmit, initialGutter }) => {
     const [prompt, setPrompt] = useState('');
+    const [style, setStyle] = useState('default');
+    const [colors, setColors] = useState('');
+    const [negativePrompt, setNegativePrompt] = useState('');
+    
     const [tileSize, setTileSize] = useState(3);
     const [spacing, setSpacing] = useState(initialGutter);
     const [rotationJitter, setRotationJitter] = useState(0);
@@ -26,7 +31,13 @@ const AIPatternModal: React.FC<AIPatternModalProps> = ({ onClose, onSubmit, init
         setError(null);
         setGeneratedImageSrc(null);
         try {
-            const imageSrc = await generateSeamlessPattern(prompt);
+            const params: PatternGenerationParams = {
+                prompt,
+                style,
+                colors,
+                negativePrompt
+            };
+            const imageSrc = await generateSeamlessPattern(params);
             setGeneratedImageSrc(imageSrc);
         } catch (err: any) {
             setError(err.message || "An unknown error occurred during pattern generation.");
@@ -56,7 +67,7 @@ const AIPatternModal: React.FC<AIPatternModalProps> = ({ onClose, onSubmit, init
 
                 <main className="flex-1 p-6 overflow-y-auto grid grid-cols-2 gap-6">
                     {/* Left Panel: Controls */}
-                    <div className="flex flex-col gap-6">
+                    <div className="flex flex-col gap-4">
                         <div>
                             <label htmlFor="prompt" className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2 block">Describe your pattern</label>
                             <textarea
@@ -67,35 +78,78 @@ const AIPatternModal: React.FC<AIPatternModalProps> = ({ onClose, onSubmit, init
                                 className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 h-24"
                             />
                         </div>
-                        
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label htmlFor="tile-size" className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2 block">Tile Size (in)</label>
-                                <input id="tile-size" type="number" value={tileSize} min="0.5" step="0.1" onChange={e => setTileSize(parseFloat(e.target.value) || 1)} className="w-full p-2 border rounded-md dark:bg-slate-700 dark:border-slate-600"/>
-                            </div>
-                            <div>
-                                <label htmlFor="spacing" className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2 block">Spacing (in)</label>
-                                <input id="spacing" type="number" value={spacing} min="0" step="0.05" onChange={e => setSpacing(parseFloat(e.target.value) || 0)} className="w-full p-2 border rounded-md dark:bg-slate-700 dark:border-slate-600"/>
-                            </div>
+
+                        <div>
+                            <label htmlFor="style" className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2 block">Art Style</label>
+                            <select
+                                id="style"
+                                value={style}
+                                onChange={(e) => setStyle(e.target.value)}
+                                className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            >
+                                <option value="default">Default</option>
+                                <option value="photorealistic">Photorealistic</option>
+                                <option value="watercolor">Watercolor</option>
+                                <option value="cartoon">Cartoon</option>
+                                <option value="line-art">Line Art</option>
+                                <option value="vector">Flat / Vector</option>
+                                <option value="pixel-art">Pixel Art</option>
+                            </select>
                         </div>
 
                         <div>
-                            <label htmlFor="rotation" className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2 block">Rotation Jitter ({rotationJitter}°)</label>
-                             <input
-                                id="rotation"
-                                type="range"
-                                min="0"
-                                max="180"
-                                value={rotationJitter}
-                                onChange={e => setRotationJitter(parseInt(e.target.value))}
-                                className="w-full h-2 bg-gray-200 dark:bg-slate-600 rounded-lg appearance-none cursor-pointer"
+                            <label htmlFor="colors" className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2 block">Dominant Colors <span className="text-gray-400">(optional)</span></label>
+                            <input
+                                id="colors"
+                                type="text"
+                                value={colors}
+                                onChange={(e) => setColors(e.target.value)}
+                                placeholder="e.g., navy blue, cream, gold"
+                                className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                             />
+                        </div>
+                        
+                        <div>
+                            <label htmlFor="negativePrompt" className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2 block">Things to avoid <span className="text-gray-400">(optional)</span></label>
+                            <textarea
+                                id="negativePrompt"
+                                value={negativePrompt}
+                                onChange={(e) => setNegativePrompt(e.target.value)}
+                                placeholder="e.g., text, watermarks, blurry"
+                                className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 h-20"
+                            />
+                        </div>
+                        
+                        <div className="border-t border-gray-200 dark:border-slate-700 pt-4 space-y-4">
+                             <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label htmlFor="tile-size" className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2 block">Tile Size (in)</label>
+                                    <input id="tile-size" type="number" value={tileSize} min="0.5" step="0.1" onChange={e => setTileSize(parseFloat(e.target.value) || 1)} className="w-full p-2 border rounded-md dark:bg-slate-700 dark:border-slate-600"/>
+                                </div>
+                                <div>
+                                    <label htmlFor="spacing" className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2 block">Spacing (in)</label>
+                                    <input id="spacing" type="number" value={spacing} min="0" step="0.05" onChange={e => setSpacing(parseFloat(e.target.value) || 0)} className="w-full p-2 border rounded-md dark:bg-slate-700 dark:border-slate-600"/>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label htmlFor="rotation" className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2 block">Rotation Jitter ({rotationJitter}°)</label>
+                                 <input
+                                    id="rotation"
+                                    type="range"
+                                    min="0"
+                                    max="180"
+                                    value={rotationJitter}
+                                    onChange={e => setRotationJitter(parseInt(e.target.value))}
+                                    className="w-full h-2 bg-gray-200 dark:bg-slate-600 rounded-lg appearance-none cursor-pointer"
+                                />
+                            </div>
                         </div>
 
                          <button
                             onClick={handleGenerate}
                             disabled={isGenerating}
-                            className="w-full bg-indigo-600 text-white font-semibold py-3 px-4 rounded-lg flex items-center justify-center gap-2 hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-wait"
+                            className="w-full bg-indigo-600 text-white font-semibold py-3 px-4 rounded-lg flex items-center justify-center gap-2 hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-wait mt-auto"
                         >
                             <Icon name="wand" className="w-5 h-5" />
                             {isGenerating ? 'Generating...' : 'Generate Pattern'}
