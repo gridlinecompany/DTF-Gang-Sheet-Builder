@@ -24,7 +24,7 @@ const AIPatternModal: React.FC<AIPatternModalProps> = ({ onClose, onSubmit, init
 
     const handleGenerate = async () => {
         if (!prompt.trim()) {
-            setError("Please enter a prompt to generate a pattern.");
+            setError("Please enter a description for your pattern.");
             return;
         }
         setIsGenerating(true);
@@ -58,29 +58,30 @@ const AIPatternModal: React.FC<AIPatternModalProps> = ({ onClose, onSubmit, init
     };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 p-4">
-            <div className="bg-white dark:bg-slate-800 rounded-lg shadow-2xl w-full max-w-2xl flex flex-col max-h-[90vh]">
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 p-4" role="dialog" aria-modal="true" aria-labelledby="ai-pattern-modal-title">
+            <div className="bg-white dark:bg-slate-800 rounded-lg shadow-2xl w-full max-w-4xl flex flex-col max-h-[90vh]">
                 <header className="p-4 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center">
-                    <h2 className="text-xl font-bold">AI Pattern Generator</h2>
+                    <h2 id="ai-pattern-modal-title" className="text-xl font-bold">AI Pattern Generator</h2>
                     <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-slate-700 text-2xl leading-none" aria-label="Close modal">&times;</button>
                 </header>
 
-                <main className="flex-1 p-6 overflow-y-auto grid grid-cols-2 gap-6">
+                <main className="flex-1 p-6 overflow-y-auto grid grid-cols-1 md:grid-cols-2 gap-8">
                     {/* Left Panel: Controls */}
                     <div className="flex flex-col gap-4">
                         <div>
-                            <label htmlFor="prompt" className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2 block">Describe your pattern</label>
+                            <label htmlFor="prompt" className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2 block">1. Describe your pattern</label>
                             <textarea
                                 id="prompt"
                                 value={prompt}
                                 onChange={(e) => setPrompt(e.target.value)}
                                 placeholder="e.g., cute cartoon cats, psychedelic mushrooms, vintage floral..."
                                 className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 h-24"
+                                aria-required="true"
                             />
                         </div>
 
                         <div>
-                            <label htmlFor="style" className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2 block">Art Style</label>
+                            <label htmlFor="style" className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2 block">2. Choose an Art Style</label>
                             <select
                                 id="style"
                                 value={style}
@@ -98,7 +99,7 @@ const AIPatternModal: React.FC<AIPatternModalProps> = ({ onClose, onSubmit, init
                         </div>
 
                         <div>
-                            <label htmlFor="colors" className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2 block">Dominant Colors <span className="text-gray-400">(optional)</span></label>
+                            <label htmlFor="colors" className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2 block">3. Dominant Colors <span className="text-gray-400 font-normal">(optional)</span></label>
                             <input
                                 id="colors"
                                 type="text"
@@ -110,7 +111,7 @@ const AIPatternModal: React.FC<AIPatternModalProps> = ({ onClose, onSubmit, init
                         </div>
                         
                         <div>
-                            <label htmlFor="negativePrompt" className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2 block">Things to avoid <span className="text-gray-400">(optional)</span></label>
+                            <label htmlFor="negativePrompt" className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2 block">4. Things to avoid <span className="text-gray-400 font-normal">(optional)</span></label>
                             <textarea
                                 id="negativePrompt"
                                 value={negativePrompt}
@@ -120,20 +121,21 @@ const AIPatternModal: React.FC<AIPatternModalProps> = ({ onClose, onSubmit, init
                             />
                         </div>
                         
-                        <div className="border-t border-gray-200 dark:border-slate-700 pt-4 space-y-4">
+                        <div className="border-t border-gray-200 dark:border-slate-700 pt-4 space-y-4 mt-auto">
+                             <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400">Tiling Options</h3>
                              <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label htmlFor="tile-size" className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2 block">Tile Size (in)</label>
+                                    <label htmlFor="tile-size" className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">Tile Size (in)</label>
                                     <input id="tile-size" type="number" value={tileSize} min="0.5" step="0.1" onChange={e => setTileSize(parseFloat(e.target.value) || 1)} className="w-full p-2 border rounded-md dark:bg-slate-700 dark:border-slate-600"/>
                                 </div>
                                 <div>
-                                    <label htmlFor="spacing" className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2 block">Spacing (in)</label>
+                                    <label htmlFor="spacing" className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">Spacing (in)</label>
                                     <input id="spacing" type="number" value={spacing} min="0" step="0.05" onChange={e => setSpacing(parseFloat(e.target.value) || 0)} className="w-full p-2 border rounded-md dark:bg-slate-700 dark:border-slate-600"/>
                                 </div>
                             </div>
 
                             <div>
-                                <label htmlFor="rotation" className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2 block">Rotation Jitter ({rotationJitter}°)</label>
+                                <label htmlFor="rotation" className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">Rotation Jitter ({rotationJitter}°)</label>
                                  <input
                                     id="rotation"
                                     type="range"
@@ -145,21 +147,12 @@ const AIPatternModal: React.FC<AIPatternModalProps> = ({ onClose, onSubmit, init
                                 />
                             </div>
                         </div>
-
-                         <button
-                            onClick={handleGenerate}
-                            disabled={isGenerating}
-                            className="w-full bg-indigo-600 text-white font-semibold py-3 px-4 rounded-lg flex items-center justify-center gap-2 hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-wait mt-auto"
-                        >
-                            <Icon name="wand" className="w-5 h-5" />
-                            {isGenerating ? 'Generating...' : 'Generate Pattern'}
-                        </button>
                     </div>
 
-                    {/* Right Panel: Preview */}
+                    {/* Right Panel: Preview & Generate Button */}
                     <div className="flex flex-col">
-                         <label className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2 block">Preview</label>
-                         <div className="aspect-square w-full bg-gray-100 dark:bg-slate-700/50 rounded-lg flex items-center justify-center overflow-hidden">
+                         <label className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2 block">5. Generate & Preview</label>
+                         <div className="aspect-square w-full bg-gray-100 dark:bg-slate-700/50 rounded-lg flex items-center justify-center overflow-hidden border border-gray-200 dark:border-slate-700" aria-live="polite">
                             {isGenerating && (
                                 <div className="flex flex-col items-center gap-2 text-gray-500">
                                     <div className="w-8 h-8 border-2 border-t-indigo-500 border-gray-200 dark:border-slate-600 rounded-full animate-spin"></div>
@@ -167,10 +160,19 @@ const AIPatternModal: React.FC<AIPatternModalProps> = ({ onClose, onSubmit, init
                                 </div>
                             )}
                             {error && <p className="text-red-500 text-center p-4">{error}</p>}
+                            {!isGenerating && !generatedImageSrc && !error && <p className="text-gray-400">Preview will appear here</p>}
                             {generatedImageSrc && (
                                 <img src={generatedImageSrc} alt="Generated pattern tile" className="w-full h-full object-cover"/>
                             )}
                          </div>
+                         <button
+                            onClick={handleGenerate}
+                            disabled={isGenerating}
+                            className="w-full bg-indigo-600 text-white font-semibold py-3 px-4 rounded-lg flex items-center justify-center gap-2 hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-wait mt-4"
+                        >
+                            <Icon name="wand" className="w-5 h-5" />
+                            {isGenerating ? 'Generating...' : 'Generate Pattern'}
+                        </button>
                     </div>
                 </main>
 
