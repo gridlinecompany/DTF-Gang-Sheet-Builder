@@ -5,6 +5,7 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>DTF Gang Sheet Builder</title>
+    <link rel="stylesheet" href="/src/index.css">
     <script>
       // Set theme on page load
       if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
@@ -13,28 +14,25 @@
         document.documentElement.classList.remove('dark');
       }
     </script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        darkMode: 'class',
-      }
-    </script>
-    <script type="importmap">
+  <script type="importmap">
 {
   "imports": {
-    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.16.0",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.17.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/",
     "react/": "https://aistudiocdn.com/react@^19.1.1/",
     "react": "https://aistudiocdn.com/react@^19.1.1",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/",
+    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.0.2",
     "html-to-image": "https://aistudiocdn.com/html-to-image@^1.11.13",
-    "react-rnd": "https://aistudiocdn.com/react-rnd@^10.5.2",
-    "react-dropzone": "https://aistudiocdn.com/react-dropzone@^14.3.8"
+    "react-dropzone": "https://aistudiocdn.com/react-dropzone@^14.3.8",
+    "@netlify/functions": "https://aistudiocdn.com/@netlify/functions@^4.2.5",
+    "vite": "https://aistudiocdn.com/vite@^7.1.4",
+    "react-rnd": "https://aistudiocdn.com/react-rnd@^10.5.2"
   }
 }
 </script>
-  </head>
+</head>
   <body class="bg-gray-100 dark:bg-slate-900 transition-colors duration-300">
     <div id="root"></div>
-    <script type="module" src="/index.tsx"></script>
+    <script type="module" src="/src/index.tsx"></script>
   </body>
 </html>
